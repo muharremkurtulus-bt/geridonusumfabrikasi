@@ -1,0 +1,790 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>NeuraKidz - Geri Dönüşüm Fabrikası</title>
+    
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Balsamiq+Sans:wght@700&family=Nunito:wght@700;900&display=swap" rel="stylesheet">
+    
+    <style>
+        body {
+            font-family: 'Nunito', sans-serif;
+            background: radial-gradient(circle at 50% 50%, #f0fdfa 0%, #ccfbf1 100%);
+            overflow: hidden;
+            touch-action: none;
+            color: #1e293b;
+            margin: 0;
+            height: 100vh;
+            display: flex;
+            flex-direction: column;
+        }
+
+        /* --- Üst Panel (HUD) --- */
+        .hud-container {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 1rem 3rem;
+            background: linear-gradient(to bottom, #ffffff, #f8fafc);
+            box-shadow: 0 4px 15px -3px rgba(0, 0, 0, 0.1);
+            z-index: 50;
+            border-bottom: 5px solid #14b8a6;
+        }
+
+        .hud-item {
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
+            font-family: 'Balsamiq Sans', cursive;
+            font-size: 1.75rem;
+            color: #0f172a;
+            background: white;
+            padding: 0.5rem 1.5rem;
+            border-radius: 9999px; /* Pill shape */
+            border: 4px solid #e2e8f0;
+            box-shadow: inset 0 2px 4px rgba(0,0,0,0.05);
+        }
+
+        .heart-icon {
+            color: #ef4444;
+            filter: drop-shadow(0 2px 2px rgba(0,0,0,0.2));
+            transition: transform 0.2s, color 0.2s;
+        }
+        .heart-icon.lost {
+            color: #cbd5e1;
+            transform: scale(0.8);
+        }
+
+        /* --- Oyun Alanı ve Bant --- */
+        .game-area {
+            flex-grow: 1;
+            position: relative;
+            background: url('data:image/svg+xml;utf8,<svg width="60" height="60" xmlns="http://www.w3.org/2000/svg"><path d="M0 30h60M30 0v60" stroke="%2394a3b8" stroke-width="1" fill="none" opacity="0.15"/></svg>');
+            display: flex;
+            align-items: center;
+            box-shadow: inset 0 0 50px rgba(0,0,0,0.05);
+        }
+
+        .conveyor-belt {
+            position: absolute;
+            bottom: 12%;
+            width: 100%;
+            height: 80px;
+            background: linear-gradient(to bottom, #64748b, #475569);
+            border-top: 5px solid #94a3b8;
+            border-bottom: 12px solid #1e293b;
+            box-shadow: 0 15px 25px -5px rgba(0, 0, 0, 0.4);
+            display: flex;
+            align-items: center;
+            z-index: 10;
+        }
+
+        /* Bant animasyonu için çizgiler - Daha endüstriyel görünüm */
+        .conveyor-lines {
+            width: 200%;
+            height: 100%;
+            background: repeating-linear-gradient(
+                90deg,
+                transparent,
+                transparent 60px,
+                #334155 60px,
+                #334155 80px
+            );
+            animation: moveBelt 1.5s linear infinite;
+        }
+
+        @keyframes moveBelt {
+            0% { transform: translateX(0); }
+            100% { transform: translateX(-80px); } /* repeating pattern width */
+        }
+
+        /* Hedef Noktası (Tarayıcı - Scanner) */
+        .target-zone {
+            position: absolute;
+            right: 15%;
+            bottom: calc(12% - 10px); /* Bantın üzerine tam oturması için */
+            width: 120px;
+            height: 130px;
+            border: 4px solid #fde047;
+            border-radius: 1.5rem;
+            background: rgba(253, 224, 71, 0.15);
+            z-index: 20;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            box-shadow: 0 0 20px rgba(253, 224, 71, 0.6), inset 0 0 15px rgba(253, 224, 71, 0.4);
+            transition: all 0.1s;
+        }
+
+        /* Tarayıcı çizgisi animasyonu */
+        .scanner-line {
+            position: absolute;
+            width: 100%;
+            height: 4px;
+            background: #facc15;
+            box-shadow: 0 0 10px #facc15;
+            animation: scan 1.5s ease-in-out infinite alternate;
+        }
+
+        @keyframes scan {
+            0% { top: 10%; }
+            100% { top: 90%; }
+        }
+
+        .target-zone.glow-success {
+            background: rgba(34, 197, 94, 0.3);
+            border-color: #4ade80;
+            box-shadow: 0 0 30px #4ade80, inset 0 0 20px #4ade80;
+        }
+
+        .target-zone.glow-success .scanner-line { background: #4ade80; box-shadow: 0 0 10px #4ade80;}
+
+        .target-zone.glow-error {
+            background: rgba(239, 68, 68, 0.3);
+            border-color: #f87171;
+            box-shadow: 0 0 30px #f87171, inset 0 0 20px #f87171;
+        }
+        
+        .target-zone.glow-error .scanner-line { background: #f87171; box-shadow: 0 0 10px #f87171;}
+
+        .target-text {
+            font-family: 'Balsamiq Sans', cursive;
+            color: #b45309;
+            font-size: 1.1rem;
+            background: #fef3c7;
+            padding: 4px 12px;
+            border-radius: 20px;
+            border: 2px solid #fde047;
+            position: absolute;
+            top: -55px; /* Yazının kutu içine girmemesi için daha yukarı alındı */
+            white-space: nowrap;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+            animation: bounce 2s infinite;
+        }
+
+        @keyframes bounce {
+            0%, 100% { transform: translateY(0); }
+            50% { transform: translateY(-5px); }
+        }
+
+        /* Atık Objeleri */
+        .waste-item {
+            position: absolute;
+            bottom: calc(12% + 5px); /* Bantın hemen üzerinde durması için */
+            width: 90px;
+            height: 90px;
+            z-index: 30;
+            will-change: transform;
+            transition: opacity 0.2s, transform 0.2s;
+        }
+
+        .waste-item img {
+            width: 100%;
+            height: 100%;
+            object-fit: contain;
+            filter: drop-shadow(0 8px 6px rgba(0,0,0,0.5));
+            transform: translateY(0);
+            transition: filter 0.2s;
+        }
+
+        .waste-item.in-target img {
+            filter: drop-shadow(0 0 20px #fde047) drop-shadow(0 8px 6px rgba(0,0,0,0.6)) brightness(1.1);
+        }
+
+        /* --- Kontrol Butonları --- */
+        .controls-container {
+            background: linear-gradient(to top, #0f172a, #1e293b);
+            padding: 1.5rem 2rem;
+            display: flex;
+            justify-content: center;
+            gap: 1.5rem;
+            border-top: 6px solid #020617;
+            z-index: 50;
+            box-shadow: 0 -10px 20px rgba(0,0,0,0.3);
+        }
+
+        .action-btn {
+            flex: 1;
+            max-width: 160px;
+            height: 140px;
+            border-radius: 1.5rem;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            gap: 0.5rem;
+            cursor: pointer;
+            transition: transform 0.1s, filter 0.1s;
+            position: relative;
+            box-shadow: 0 10px 0 rgba(0,0,0,0.5), 0 15px 25px rgba(0,0,0,0.4);
+        }
+
+        .action-btn:active {
+            transform: translateY(10px);
+            box-shadow: 0 0px 0 rgba(0,0,0,0.5), 0 5px 10px rgba(0,0,0,0.4);
+        }
+
+        /* Buton Renkleri - Daha canlı ve belirgin */
+        #btn-plastic { background: linear-gradient(135deg, #fef08a, #eab308); border: 5px solid #a16207; }
+        #btn-paper { background: linear-gradient(135deg, #bfdbfe, #3b82f6); border: 5px solid #1d4ed8; }
+        #btn-glass { background: linear-gradient(135deg, #bbf7d0, #22c55e); border: 5px solid #15803d; }
+        #btn-organic { background: linear-gradient(135deg, #e7e5e4, #a8a29e); border: 5px solid #57534e; }
+
+        .btn-icon { width: 70px; height: 70px; pointer-events: none; margin-bottom: -5px;}
+        .btn-icon img { width: 100%; height: 100%; object-fit: contain; filter: drop-shadow(0 6px 8px rgba(0,0,0,0.5)); }
+        
+        .btn-label {
+            font-family: 'Balsamiq Sans', cursive;
+            font-size: 1.1rem;
+            color: white;
+            text-shadow: 2px 2px 0px rgba(0,0,0,0.3);
+            pointer-events: none;
+            letter-spacing: 1px;
+        }
+
+        /* Uçan Puan Animasyonu */
+        .floating-score {
+            position: absolute;
+            font-family: 'Balsamiq Sans', cursive;
+            font-size: 2.5rem;
+            font-weight: bold;
+            pointer-events: none;
+            z-index: 100;
+            animation: floatUpFade 1s forwards cubic-bezier(0.175, 0.885, 0.32, 1.275);
+        }
+        .score-plus { color: #4ade80; text-shadow: 3px 3px 0 #166534, 0 0 10px rgba(74,222,128,0.5); }
+        .score-minus { color: #f87171; text-shadow: 3px 3px 0 #991b1b, 0 0 10px rgba(248,113,113,0.5); }
+
+        @keyframes floatUpFade {
+            0% { transform: translateY(0) scale(0.5); opacity: 0; }
+            20% { transform: translateY(-20px) scale(1.2); opacity: 1; }
+            100% { transform: translateY(-80px) scale(1); opacity: 0; }
+        }
+
+        /* Modal Ortak Stili */
+        .modal-overlay {
+            position: fixed;
+            inset: 0;
+            background: rgba(15, 23, 42, 0.85);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            z-index: 1000;
+            backdrop-filter: blur(8px);
+        }
+
+        .modal-box {
+            background: white;
+            padding: 2.5rem;
+            border-radius: 2rem;
+            max-width: 550px;
+            width: 90%;
+            text-align: center;
+            border: 8px solid #14b8a6;
+            box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.7);
+            transform: scale(0.9);
+            animation: popIn 0.4s forwards cubic-bezier(0.175, 0.885, 0.32, 1.275);
+        }
+
+        @keyframes popIn { to { transform: scale(1); } }
+
+        .btn-start {
+            background: linear-gradient(to bottom, #34d399, #059669);
+            color: white;
+            font-family: 'Balsamiq Sans', cursive;
+            font-size: 1.8rem;
+            padding: 1.2rem 2.5rem;
+            border-radius: 1.5rem;
+            border: 4px solid #064e3b;
+            box-shadow: 0 8px 0 #064e3b, 0 15px 20px rgba(0,0,0,0.2);
+            transition: all 0.1s;
+            margin-top: 1.5rem;
+            cursor: pointer;
+            letter-spacing: 2px;
+        }
+        .btn-start:active { transform: translateY(8px); box-shadow: 0 0 0 #064e3b; }
+
+        .hidden { display: none !important; }
+    </style>
+</head>
+<body>
+
+    <!-- Başlangıç Ekranı -->
+    <div id="start-screen" class="modal-overlay">
+        <div class="modal-box">
+            <h1 class="text-5xl font-['Balsamiq_Sans'] text-teal-500 mb-6 drop-shadow-md">Geri Dönüşüm Fabrikası</h1>
+            <div class="text-left bg-teal-50 p-5 rounded-2xl mb-6 font-bold text-slate-700 border-2 border-teal-100">
+                <p class="text-xl mb-3 text-teal-700">🛠️ <strong>NASIL OYNANIR?</strong></p>
+                <ul class="list-disc pl-5 space-y-3 text-lg">
+                    <li>Atıklar yürüyen bant üzerinde kayarak gelecek.</li>
+                    <li>Atık sağdaki <strong>Sarı Tarayıcı Alanına</strong> tam girdiğinde türünü belirle.</li>
+                    <li>Geç kalmadan doğru kutunun butonuna <strong>TIKLA!</strong></li>
+                    <li>Sürüklemek yok, sadece dikkatli bak ve hızlı bas!</li>
+                </ul>
+            </div>
+            <button id="start-btn" class="btn-start w-full">FABRİKAYI ÇALIŞTIR</button>
+        </div>
+    </div>
+
+    <!-- HUD -->
+    <div class="hud-container">
+        <div class="flex items-center gap-4">
+            <!-- Bilfen Logosu -->
+            <img id="logo-bilfen" src="images/bilfen-logo.png" alt="Bilfen" class="h-10 md:h-12 object-contain filter drop-shadow-sm" onerror="this.style.display='none'">
+            
+            <div class="hud-item border-blue-300">
+                <i class="fa-solid fa-stopwatch text-blue-500"></i>
+                <span id="time-display" class="font-bold">03:00</span>
+            </div>
+        </div>
+        <div class="hud-item text-green-600 border-green-300">
+            <i class="fa-solid fa-star text-yellow-400"></i>
+            <span id="score-display" class="font-bold">0</span>
+        </div>
+        <div class="hud-item border-red-300 bg-red-50" id="lives-display">
+            <i class="fa-solid fa-heart heart-icon"></i>
+            <i class="fa-solid fa-heart heart-icon"></i>
+            <i class="fa-solid fa-heart heart-icon"></i>
+        </div>
+    </div>
+
+    <!-- Oyun Alanı -->
+    <div class="game-area" id="waste-container">
+        <div class="conveyor-belt">
+            <div class="conveyor-lines"></div>
+        </div>
+        <div class="target-zone" id="target-zone">
+            <div class="scanner-line"></div>
+            <span class="target-text">BURAYA GELİNCE BAS!</span>
+        </div>
+    </div>
+
+    <!-- Kontrol Butonları -->
+    <div class="controls-container">
+        <button class="action-btn" id="btn-plastic" data-type="plastic">
+            <div class="btn-icon"><img id="img-bin-plastic" src="" alt="Plastik"></div>
+            <span class="btn-label">PLASTİK</span>
+        </button>
+        <button class="action-btn" id="btn-paper" data-type="paper">
+            <div class="btn-icon"><img id="img-bin-paper" src="" alt="Kağıt"></div>
+            <span class="btn-label">KAĞIT</span>
+        </button>
+        <button class="action-btn" id="btn-glass" data-type="glass">
+            <div class="btn-icon"><img id="img-bin-glass" src="" alt="Cam"></div>
+            <span class="btn-label">CAM</span>
+        </button>
+        <button class="action-btn" id="btn-organic" data-type="organic">
+            <div class="btn-icon"><img id="img-bin-organic" src="" alt="Organik"></div>
+            <span class="btn-label">ORGANİK</span>
+        </button>
+    </div>
+
+    <!-- Oyun Sonu Ekranı -->
+    <div id="game-over-screen" class="modal-overlay hidden">
+        <div class="modal-box border-yellow-400">
+            <h2 id="end-title" class="text-5xl font-['Balsamiq_Sans'] text-yellow-500 mb-4 drop-shadow-md">OYUN BİTTİ!</h2>
+            <p class="text-3xl font-bold text-slate-700 mb-2">Toplam Puan: <span id="final-score" class="text-teal-500 text-4xl">0</span></p>
+            <p class="text-xl font-bold text-slate-500 mb-6">Tam <span id="recycled-count" class="text-green-500 text-3xl mx-1">0</span> atığı geri dönüştürdün! 🌍</p>
+            
+            <div class="bg-blue-50 p-5 rounded-2xl border-2 border-blue-200 mb-6">
+                <h3 class="font-['Balsamiq_Sans'] text-blue-600 mb-3 text-xl"><i class="fa-solid fa-lightbulb text-yellow-400"></i> Biliyor muydun?</h3>
+                <p id="educational-fact" class="font-bold text-slate-600 text-lg leading-relaxed"></p>
+            </div>
+
+            <button id="restart-btn" class="btn-start w-full" style="background: linear-gradient(to bottom, #60a5fa, #2563eb); border-color: #1e3a8a; box-shadow: 0 8px 0 #1e3a8a;">
+                YENİDEN DENE
+            </button>
+        </div>
+    </div>
+
+    <script>
+        // --- 1. GÖRSEL DOSYA YOLLARI (AYARLAR) ---
+        // Oluşturacağın 1080x1080 görselleri 'images' klasörüne koyup bu isimlerle kaydet.
+        const IMAGE_ASSETS = {
+            bins: {
+                plastic: "images/kutu-plastik.png",
+                paper: "images/kutu-kagit.png",
+                glass: "images/kutu-cam.png",
+                organic: "images/kutu-organik.png"
+            },
+            wastes: {
+                plastic: [
+                    "images/plastik-sise.png",
+                    "images/plastik-kapak.png",
+                    "images/plastik-ambalaj.png"
+                ],
+                paper: [
+                    "images/kagit-gazete.png",
+                    "images/kagit-karton.png",
+                    "images/kagit-kitap.png"
+                ],
+                glass: [
+                    "images/cam-kavanoz.png",
+                    "images/cam-sise.png",
+                    "images/cam-bardak.png"
+                ],
+                organic: [
+                    "images/organik-muz.png",
+                    "images/organik-elma.png",
+                    "images/organik-yumurta.png"
+                ]
+            }
+        };
+
+        const wasteTypesList = ['plastic', 'paper', 'glass', 'organic'];
+
+        const educationalFacts = [
+            "1 ton kağıdı geri dönüştürmek, 17 ağacı kesilmekten kurtarır!",
+            "Plastik bir şişenin doğada tamamen yok olması 1000 yıl sürebilir!",
+            "Cam, kalitesinden hiçbir şey kaybetmeden sonsuz kez geri dönüştürülebilen harika bir maddedir.",
+            "Geri dönüştürülmüş bir alüminyum kutu ile bir televizyonu 3 saat çalıştıracak enerji tasarrufu sağlanır.",
+            "Organik atıklar (elma çöpü vb.) kompost yapılarak toprağı zenginleştiren gübreye dönüşür.",
+            "Dünyadaki atıkların büyük kısmı denizlere karışarak deniz canlılarına zarar veriyor. Geri dönüşüm onları korur!",
+            "Sadece 1 plastik şişeyi geri dönüştürerek 60 watt'lık bir ampulü 6 saat yakacak enerji tasarrufu yapabilirsin!"
+        ];
+
+        /* --- Ses Efektleri --- */
+        const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+        function playTone(freq, type, duration, vol=0.1) {
+            if (audioCtx.state === 'suspended') audioCtx.resume();
+            const osc = audioCtx.createOscillator();
+            const gain = audioCtx.createGain();
+            osc.type = type;
+            osc.frequency.setValueAtTime(freq, audioCtx.currentTime);
+            gain.gain.setValueAtTime(0, audioCtx.currentTime);
+            gain.gain.linearRampToValueAtTime(vol, audioCtx.currentTime + duration*0.2);
+            gain.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + duration);
+            osc.connect(gain); gain.connect(audioCtx.destination);
+            osc.start(); osc.stop(audioCtx.currentTime + duration);
+        }
+
+        const sfx = {
+            correct: () => { playTone(600, 'sine', 0.1, 0.1); setTimeout(()=>playTone(800, 'sine', 0.15, 0.1), 100); },
+            wrong: () => playTone(200, 'sawtooth', 0.3, 0.1),
+            miss: () => playTone(150, 'square', 0.4, 0.1),
+            gameover: () => { playTone(300, 'sawtooth', 0.2); setTimeout(()=>playTone(250, 'sawtooth', 0.4), 200); }
+        };
+
+        // --- Oyun Değişkenleri ---
+        let score = 0;
+        let recycledCount = 0;
+        let lives = 3;
+        let timeLeft = 180; 
+        let isPlaying = false;
+        let wastes = []; 
+        let spawnTimer = null;
+        let gameTimer = null;
+        
+        let beltSpeed = 3.5; // Slightly faster initial speed
+        let spawnIntervalTime = 2200; 
+        let lastTime = 0;
+
+        const uiTime = document.getElementById('time-display');
+        const uiScore = document.getElementById('score-display');
+        const uiLives = document.getElementById('lives-display');
+        const wasteContainer = document.getElementById('waste-container');
+        const targetZone = document.getElementById('target-zone');
+
+        let targetZoneRect = targetZone.getBoundingClientRect();
+        // Daha hassas hedef alanı için iç sınırları belirleyelim
+        let targetHitbox = { left: 0, right: 0, center: 0, width: 0 };
+
+        function updateDimensions() {
+            targetZoneRect = targetZone.getBoundingClientRect();
+            // Hedef alanını biraz daraltarak tam ortadayken basılmasını teşvik edelim
+            const padding = targetZoneRect.width * 0.1;
+            targetHitbox = {
+                left: targetZoneRect.left + padding,
+                right: targetZoneRect.right - padding,
+                center: targetZoneRect.left + (targetZoneRect.width / 2),
+                width: targetZoneRect.width - (padding * 2)
+            };
+        }
+        window.addEventListener('resize', updateDimensions);
+
+        function loadBinImages() {
+            // Eğer resim bulunamazsa kutu boş görünmemesi için hata yakalama eklendi
+            const setImg = (id, src) => {
+                const img = document.getElementById(id);
+                img.src = src;
+                img.onerror = () => { img.style.display = 'none'; }; // Resim yoksa iconu gizle
+            };
+            setImg('img-bin-plastic', IMAGE_ASSETS.bins.plastic);
+            setImg('img-bin-paper', IMAGE_ASSETS.bins.paper);
+            setImg('img-bin-glass', IMAGE_ASSETS.bins.glass);
+            setImg('img-bin-organic', IMAGE_ASSETS.bins.organic);
+        }
+
+        function startGame() {
+            document.getElementById('start-screen').classList.add('hidden');
+            document.getElementById('game-over-screen').classList.add('hidden');
+            
+            score = 0;
+            recycledCount = 0;
+            lives = 3;
+            timeLeft = 180;
+            beltSpeed = window.innerWidth < 600 ? 2.5 : 4; // Adjusted speeds
+            spawnIntervalTime = 2200;
+            wastes.forEach(w => w.el.remove());
+            wastes = [];
+            
+            updateUI();
+            updateDimensions();
+            isPlaying = true;
+
+            gameTimer = setInterval(() => {
+                timeLeft--;
+                updateUI();
+                
+                if (timeLeft % 30 === 0 && timeLeft > 0) {
+                    beltSpeed += 0.5;
+                    spawnIntervalTime = Math.max(900, spawnIntervalTime - 200);
+                    resetSpawnTimer();
+                }
+
+                if (timeLeft <= 0) endGame();
+            }, 1000);
+
+            resetSpawnTimer();
+            lastTime = performance.now();
+            requestAnimationFrame(gameLoop);
+        }
+
+        function resetSpawnTimer() {
+            if (spawnTimer) clearInterval(spawnTimer);
+            if (isPlaying) {
+                // Hız arttıkça gelme süresi de kısalsın
+                const dynamicInterval = Math.max(800, spawnIntervalTime - (score * 5));
+                spawnTimer = setInterval(spawnWaste, dynamicInterval);
+                spawnWaste(); 
+            }
+        }
+
+        function spawnWaste() {
+            if (!isPlaying) return;
+            
+            const type = wasteTypesList[Math.floor(Math.random() * wasteTypesList.length)];
+            const imagesArray = IMAGE_ASSETS.wastes[type];
+            const randomImageUrl = imagesArray[Math.floor(Math.random() * imagesArray.length)];
+
+            const el = document.createElement('div');
+            el.className = 'waste-item';
+            
+            const img = document.createElement('img');
+            img.src = randomImageUrl;
+            // Kendi görsellerini yüklemediğinde kırık resim ikonu çıkmaması için geçici renk
+            img.onerror = () => { 
+                img.style.display = 'none'; 
+                el.style.backgroundColor = type === 'plastic' ? '#facc15' : type === 'paper' ? '#3b82f6' : type === 'glass' ? '#22c55e' : '#8b4513';
+                el.style.borderRadius = '50%';
+                el.style.border = '4px solid white';
+                el.style.boxShadow = '0 10px 15px rgba(0,0,0,0.3)';
+            };
+            
+            el.appendChild(img);
+            el.style.transform = `translateX(-120px)`; // Start further left
+            wasteContainer.appendChild(el);
+
+            wastes.push({ el: el, type: type, x: -120, isEvaluated: false });
+        }
+
+        function gameLoop(currentTime) {
+            if (!isPlaying) return;
+            
+            const deltaTime = currentTime - lastTime;
+            lastTime = currentTime;
+            
+            const speedMultiplier = (deltaTime / 16.66); 
+            const containerWidth = wasteContainer.clientWidth;
+            // Puan arttıkça bant hızı da artsın
+            const currentBeltSpeed = beltSpeed + (score / 100);
+
+            for (let i = wastes.length - 1; i >= 0; i--) {
+                let w = wastes[i];
+                w.x += currentBeltSpeed * speedMultiplier;
+                w.el.style.transform = `translateX(${w.x}px)`;
+
+                const wasteRect = w.el.getBoundingClientRect();
+                const wasteCenter = wasteRect.left + (wasteRect.width / 2);
+                
+                // Atık hedef alanının "içine" tam girdiğinde parlasın
+                if (wasteCenter > targetHitbox.left && wasteCenter < targetHitbox.right) {
+                    w.el.classList.add('in-target');
+                    w.isHittable = true; // Vurulabilir durumda
+                } else {
+                    w.el.classList.remove('in-target');
+                    w.isHittable = false;
+                }
+
+                // Atık hedef alanını "geçtiğinde" ve değerlendirilmediyse kaçırılmış sayılır
+                if (wasteRect.left > targetHitbox.right && !w.isEvaluated) {
+                    w.isEvaluated = true; // Tekrar değerlendirilmesini önle
+                    handleMiss(w.el);
+                    // Kaçırılan atık banttan düşene kadar gitsin
+                }
+
+                // Ekrandan tamamen çıkınca sil
+                if (w.x > containerWidth + 100) {
+                    w.el.remove();
+                    wastes.splice(i, 1);
+                }
+            }
+
+            requestAnimationFrame(gameLoop);
+        }
+
+        function handleButtonClick(clickedType) {
+            if (!isPlaying) return;
+
+            // Sadece 'vurulabilir' (hedef alanının tam içinde olan) ve değerlendirilmemiş atıkları bul
+            let activeWasteIndex = wastes.findIndex(w => w.isHittable && !w.isEvaluated);
+
+            if (activeWasteIndex !== -1) {
+                let w = wastes[activeWasteIndex];
+                w.isEvaluated = true;
+                w.isHittable = false;
+
+                if (w.type === clickedType) {
+                    handleSuccess(w.el);
+                } else {
+                    handleError(w.el);
+                }
+            } else {
+                // Yanlış zamanda basıldıysa (hedefte atık yokken) ceza yok ama görsel geri bildirim verelim
+                targetZone.classList.add('glow-error');
+                setTimeout(() => targetZone.classList.remove('glow-error'), 200);
+            }
+        }
+
+        function handleSuccess(element) {
+            score += 10;
+            recycledCount++;
+            sfx.correct();
+            updateUI();
+            
+            targetZone.classList.add('glow-success');
+            setTimeout(() => targetZone.classList.remove('glow-success'), 200);
+
+            showFloatingText("+10", element, 'score-plus');
+            
+            // Suction animation effect
+            element.style.transition = 'all 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275)';
+            element.style.transform = `${element.style.transform} scale(0.1) translateY(-100px)`;
+            element.style.opacity = '0';
+        }
+
+        function handleError(element) {
+            lives--;
+            sfx.wrong();
+            updateUI();
+            
+            targetZone.classList.add('glow-error');
+            setTimeout(() => targetZone.classList.remove('glow-error'), 200);
+
+            showFloatingText("YANLIŞ", element, 'score-minus');
+            
+            // Rejection animation effect
+            element.style.transition = 'all 0.3s ease';
+            element.style.transform = `${element.style.transform} scale(0) translateY(50px)`;
+            element.style.opacity = '0';
+
+            if (lives <= 0) endGame();
+        }
+
+        function handleMiss(element) {
+            lives--;
+            sfx.miss();
+            updateUI();
+            
+            targetZone.classList.add('glow-error');
+            setTimeout(() => targetZone.classList.remove('glow-error'), 200);
+
+            showFloatingText("KAÇTI!", element, 'score-minus');
+            
+            // Kaçan atığı hafifçe soluklaştır
+            element.style.opacity = '0.5';
+            element.style.filter = 'grayscale(100%)';
+
+            if (lives <= 0) endGame();
+        }
+
+        function showFloatingText(text, targetEl, cssClass) {
+            const rect = targetEl.getBoundingClientRect();
+            const floatEl = document.createElement('div');
+            floatEl.className = `floating-score ${cssClass}`;
+            floatEl.textContent = text;
+            
+            // Yazıyı atığın biraz üstünde ortala
+            floatEl.style.left = `${rect.left + (rect.width/2) - 30}px`;
+            floatEl.style.top = `${rect.top - 40}px`;
+            
+            document.body.appendChild(floatEl);
+            setTimeout(() => floatEl.remove(), 1000);
+        }
+
+        function updateUI() {
+            const m = Math.floor(timeLeft / 60).toString().padStart(2, '0');
+            const s = (timeLeft % 60).toString().padStart(2, '0');
+            uiTime.textContent = `${m}:${s}`;
+            uiScore.textContent = score;
+
+            let hearts = '';
+            for(let i=0; i<3; i++) {
+                if (i < lives) {
+                    hearts += `<i class="fa-solid fa-heart heart-icon"></i> `;
+                } else {
+                    hearts += `<i class="fa-solid fa-heart heart-icon lost"></i> `;
+                }
+            }
+            uiLives.innerHTML = hearts;
+        }
+
+        function endGame() {
+            isPlaying = false;
+            clearInterval(gameTimer);
+            if (spawnTimer) clearInterval(spawnTimer);
+            sfx.gameover();
+
+            document.getElementById('final-score').textContent = score;
+            document.getElementById('recycled-count').textContent = recycledCount;
+            const randomFact = educationalFacts[Math.floor(Math.random() * educationalFacts.length)];
+            document.getElementById('educational-fact').textContent = randomFact;
+            
+            document.getElementById('end-title').textContent = lives <= 0 ? "CANIN BİTTİ!" : "SÜRE DOLDU!";
+            
+            // Modalı gösterirken küçük bir gecikme ekle ki son animasyonlar bitsin
+            setTimeout(() => {
+                document.getElementById('game-over-screen').classList.remove('hidden');
+            }, 500);
+        }
+
+        document.querySelectorAll('.action-btn').forEach(btn => {
+            btn.addEventListener('mousedown', function(e) {
+                if(e.button !== 0) return; // Only left click
+                handleButtonClick(this.dataset.type);
+            });
+            // Touch support for mobile
+            btn.addEventListener('touchstart', function(e) {
+                e.preventDefault(); // Prevent double firing with mousedown
+                handleButtonClick(this.dataset.type);
+                // Trigger active state manually since touch doesn't always do it well
+                this.style.transform = 'translateY(10px)';
+                this.style.boxShadow = '0 0px 0 rgba(0,0,0,0.5), 0 5px 10px rgba(0,0,0,0.4)';
+                setTimeout(() => {
+                    this.style.transform = '';
+                    this.style.boxShadow = '';
+                }, 100);
+            }, {passive: false});
+        });
+
+        document.getElementById('start-btn').addEventListener('click', startGame);
+        document.getElementById('restart-btn').addEventListener('click', startGame);
+        
+        loadBinImages();
+
+    </script>
+</body>
+</html>
